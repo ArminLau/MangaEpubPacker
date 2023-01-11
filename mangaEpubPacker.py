@@ -1,6 +1,7 @@
 import os
 import re
-from datetime import datetime, timedelta
+import datetime
+import time
 from uuid import UUID
 import zipfile
 import imagesize
@@ -133,6 +134,7 @@ class Packer:
                               f"Specified source path:{path} does not exist, failed to pack, please try again\n")
                 raise Exception(f"Specified source path {path} does not exist")
         self.template = Template
+        self.cover_index = ""
         if not self.is_bulk:
             self.title = ComicInfo.title
             self.filename = f"{ComicInfo.filename}.epub"
@@ -180,6 +182,9 @@ class Packer:
 
     def create_content_opf(self, title, images_info, mange_identifier):
         context = str(self.template.get_content_opf_template())
+        default_date = time.strftime("%Y-%m-%d")
+        dcterms_modified = '{:%Y-%m-%dT%H:%M:%SZ}'.format(datetime.datetime.utcnow())
+        default_value = "default"
         if not self.is_bulk: #非批量模式下才会处理书籍的基本信息
             cover_image_index = self.comicInfo.get_cover_image_index()
             if not validate_value(cover_image_index):
@@ -187,19 +192,24 @@ class Packer:
             context = context.replace("$[cover_index]", cover_image_index)
             for key,value in self.comicInfo.meta_info.items():
                 if len(value) > 0:
-                    if key == "subject": #subject做特殊处理，前端页面是以符号;做分隔
-                        subjects = str(value).split(";")
+                    if key == "subject": #subject做特殊处理，前端页面是以符号"|"做分隔，中英文没有区分
+                        subjects = str(value).split("|")
                         value = ""
                         for subject in subjects:
                             value = value + f"<dc:subject>{subject}</dc:subject>\n"
-                        value = value[0:-1]
+                        value = value[12:-14] #裁剪掉多余的subject标签
                     context = context.replace("${"+key+"}", value)
                 else:
-                    context = context.replace("${"+key+"}", "")
+                    if key == "date":
+                        context = context.replace("${"+key+"}", default_date) #若出版日期的没有指定，默认使用打包时间
+                    else:
+                        context = context.replace("${"+key+"}", default_value)
         else:
-            context = re.sub("\$\{([x00-xF]+)}","",context) #批量模式下匹配所有的${变量}为空字符串
-        context = context.replace("$[title]", title)
+            context = re.sub("\$\{([x00-xF]+)}",default_value,context) #批量模式下匹配所有的${变量}为空字符串
+            context = context.replace("$[cover_index]", self.cover_index)
+        context = context.replace("$[title]", title).replace("$[dcterms_modified]", dcterms_modified)
         context = context.replace("$[identifier]", mange_identifier)
+        context = context.replace(f"<dc:date>{default_value}</dc:date>", f"<dc:date>{default_date}</dc:date>")
         count = 0
         items1 = ""
         items2 = ""
@@ -210,14 +220,10 @@ class Packer:
             index = self.get_index_str(count)
             template1 = f"<item id=\"x_{index}\" href=\"Text/{image_prefix}.xhtml\" media-type=\"application/xhtml+xml\" properties=\"svg\"/>"
             template2_append = ""
-            template3_properties = "page-spread-left"
-            if count%2 == 0:
-                template3_properties = "page-spread-right"
             if count == 1:
                 template2_append = " properties=\"cover-image\""
-                template3_properties = "rendition:page-spread-center"
             template2 = f"<item id=\"i_{index}\" href=\"Images/{image_prefix}.{image_postfix}\" media-type=\"image/{image_postfix}\"{template2_append}/>"
-            template3 = f"<itemref idref=\"x_{index}\" properties=\"rendition:{template3_properties}\"/>"
+            template3 = f"<itemref idref=\"x_{index}\"/>"
             items1 = items1 + template1 + "\n"
             items2 = items2 + template2 + "\n"
             items3 = items3 + template3 + "\n"
@@ -234,31 +240,36 @@ class Packer:
         logging.debug(f"Sucessful to create image_page.xhtml")
 
     #弃用的打包文件
-    def create_nav_xhtml(self):
-        template = str(self.template.get_nav_xhtml_template()).replace("${title}",self.title)
+    def create_nav_xhtml(self, title):
+        template = str(self.template.get_nav_xhtml_template()).replace("${title}",title)
+        catalog_items_template = "<li><a href=\"Text/${image_index}.xhtml\">${toc_title}</a></li>"
         catalog_items = ""
-        for item in self.comicInfo.get_nav_contents_list():
-            image_prefix,catalog = item[0:2]
-            temp = f"<li><a href=\"Text/{image_prefix}.xhtml\">{catalog}</a></li>"
-            catalog_items = catalog_items + temp + "\n"
-        guide = dict(self.comicInfo.get_nav_guide_list())
-        template = template.replace("${catalog_items}", catalog_items[0:-1]).replace("${cover_image_num}",guide.get("cover")).replace("${toc_image_num}",guide.get("toc")).replace("${bodymatter_image_num}",guide.get("bodymatter")).replace("${colophon_image_num}",guide.get("colophon"))
+        if (not self.is_bulk) and len(list(self.comicInfo.toc_info.keys())[0]) > 0: #确保包含有效的目录信息
+            toc_info = self.comicInfo.toc_info
+            toc_list = list(toc_info.keys())
+            toc_list.sort()
+            for toc in toc_list:
+                catalog_items = catalog_items + (catalog_items_template.replace("${image_index}", toc).replace("${toc_title}", toc_info.get(toc).get("title")) + "\n")
+        if len(catalog_items) == 0:
+            catalog_items = catalog_items_template.replace("${image_index}", self.cover_index).replace("${toc_title}", "封面") + "\n"
+        template = template.replace("${catalog_items}", catalog_items)
         self.epubFile.writestr(f'OEBPS/nav.xhtml', template, compress_type=zipfile.ZIP_STORED)
+        logging.debug(f"Sucessful to create nav.xhtml")
 
-    def create_toc_ncx(self, title):
-        template = str(self.template.get_toc_ncx_template()).replace("${title}", title)
+    def create_toc_ncx(self, title, mange_identifier):
+        template = str(self.template.get_toc_ncx_template()).replace("${title}", title).replace("${uuid}", mange_identifier)
         author = ""
         nav_points = ""
+        nav_point_template = "<navPoint id=\"navPoint-${count}\" playOrder=\"${count}\">\n" + \
+                             "<navLabel>\n" + \
+                             "<text>${toc_title}</text>\n" + \
+                             "</navLabel>\n" + \
+                             "<content src=\"Text/${image_index}.xhtml\"/>\n" + \
+                             "</navPoint>\n"
         if not self.is_bulk:
             creator = self.comicInfo.meta_info.get("creator")
             if creator is not None and len(creator)> 0:
                 author = creator
-            nav_point_template = "<navPoint id=\"navPoint-${count}\" playOrder=\"${count}\">\n" +\
-                                    "<navLabel>\n" +\
-                                        "<text>${toc_title}</text>\n" +\
-                                    "</navLabel>\n" +\
-                                    "<content src=\"Text/${image_index}.xhtml\"/>\n" +\
-                                "</navPoint>\n"
             toc_info = self.comicInfo.toc_info
             if len(toc_info) > 0:
                 count = 0
@@ -273,6 +284,8 @@ class Packer:
                         .replace("${toc_title}", toc_info.get(toc).get("title"))\
                         .replace("${image_index}", str(toc))
                 nav_points = nav_points[0:-1] #去除最后一个换行符
+        if len(nav_points) == 0:
+            nav_points = nav_point_template.replace("${count}", "1").replace("${toc_title}", "封面").replace("${image_index}", self.cover_index)
         template = template.replace("${navPoints}", nav_points).replace("${author}", author)
         self.epubFile.writestr(f'OEBPS/toc.ncx', template, compress_type=zipfile.ZIP_STORED)
         logging.debug(f"Sucessful to create toc.ncx")
@@ -295,11 +308,14 @@ class Packer:
         if not validate_value(images):
             raise RuntimeError(f"there is no image under path: {source_path}, failed to pack")
         images_info = self.get_images_info(path=source_path, images=images)
+        if self.is_bulk or self.comicInfo.get_cover_image_index() is None:
+            self.cover_index = images_info[0][0] #批量模式下或者目录信息缺失的情况下，设定第一页为封面页
         self.create_mimetype()
         self.create_container_xml()
         self.create_image_page_xhtml(images_info=images_info, title=title)
         self.create_content_opf(title=title, images_info=images_info, mange_identifier=mange_identifier)
-        self.create_toc_ncx(title)
+        #self.create_toc_ncx(title=title, mange_identifier=mange_identifier)
+        self.create_nav_xhtml(title=title)
         self.write_image(source_path=source_path, images=images)
         self.close()
 
@@ -355,7 +371,7 @@ class EpubHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         logging.debug("Handle Post http request: " + str(self.path))
-        start_time = datetime.now()
+        start_time = datetime.datetime.now()
         if (str(self.path).endswith("/pack")):
             #获取消息内容的长度
             context_length = self.headers['content-length']
@@ -384,8 +400,8 @@ class EpubHandler(SimpleHTTPRequestHandler):
                     flag = 1
             if flag == 0:
                 msg = msg + f"<font color=\"red\">日志文件存放路径: {log_file}</font><br/>"
-            end_time = datetime.now()
-            msg = msg + f"本次请求共耗费{timedelta.total_seconds(end_time - start_time)}秒" #统计响应本次Post请求花费的时长(秒)
+            end_time = datetime.datetime.now()
+            msg = msg + f"本次请求共耗费{datetime.timedelta.total_seconds(end_time - start_time)}秒" #统计响应本次Post请求花费的时长(秒)
             results = {"status": flag, "msg": msg}
             self.send_datas(json.dumps(results))
 

@@ -57,6 +57,11 @@ $("#form").submit(function (event) {
 });
 function showMsg(msg, delay){
     var target = $("#tip");
+    if(target.length==0){
+        var template = '<div class="w-100 alert alert-warning alert-dismissible fade show" role="alert" id="tip" style="display: none"><div></div><button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button></div>';
+        $("#tip-container").html(template);
+        target = $("#tip");
+    }
     $(target).children("div").html(msg);
     $(target).fadeIn();
     if(delay != null){
