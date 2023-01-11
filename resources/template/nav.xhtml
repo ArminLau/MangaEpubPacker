@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head>
+    <title>${title}</title>
+  </head>
+  <body>
+    <nav epub:type="toc">
+      <h1>Contents</h1>
+        <ol>
+        <li><a href="Text/${cover_image_num}.xhtml">封面</a></li>
+        <li><a href="Text/${toc_image_num}.xhtml">目录</a></li>
+        ${catalog_items}
+        <li><a href="Text/${colophon_image_num}.xhtml">版权页</a></li>
+        </ol>
+    </nav>
+    <nav epub:type="landmarks">
+      <h2>Guide</h2>
+        <ol>
+        <li><a epub:type="cover" href="Text/${cover_image_num}.xhtml">封面</a></li>
+        <li><a epub:type="toc" href="Text/${toc_image_num}.xhtml">目录</a></li>
+        <li><a epub:type="bodymatter" href="Text/${bodymatter_image_num}.xhtml">正文</a></li>
+        <li><a epub:type="colophon" href="Text/${colophon_image_num}.xhtml">版权页</a></li>
+        </ol>
+    </nav>
+  </body>
+</html>

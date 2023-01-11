@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" prefix="rendition: http://www.idpf.org/vocab/rendition/#" unique-identifier="uuid">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+        <dc:title>$[title]</dc:title>
+        <dc:creator>${creator}</dc:creator>
+        <dc:subject>${subject}</dc:subject>
+        <dc:description>${description}</dc:description>
+        <dc:contributor>${contributor}</dc:contributor>
+        <dc:identifier>$[identifier]</dc:identifier>
+        <dc:creator>${creator}</dc:creator>
+        <dc:publisher>${publisher}</dc:publisher>
+        <dc:date>${date}</dc:date>
+        <dc:type>${type}</dc:type>
+        <dc:format>${format}</dc:format>
+        <dc:source>${source}</dc:source>
+        <dc:language>${language}</dc:language>
+        <dc:relation>${relation}</dc:relation>
+        <dc:coverage>${coverage}</dc:coverage>
+        <dc:rights>${rights}</dc:rights>
+        <meta property="rendition:spread">auto</meta>
+        <meta property="rendition:layout">pre-paginated</meta>
+    </metadata>
+    <manifest>
+        <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+        $[items]
+    </manifest>
+    <spine toc="ncx" page-progression-direction="rtl">
+        $[itemrefs]
+    </spine>
+    <guide>
+    <reference type="cover" title="封面" href="Text/$[cover_index].xhtml"/>
+  </guide>
+</package>

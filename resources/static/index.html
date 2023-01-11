@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>EpubPacker</title>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/epub.css">
+</head>
+<body>
+    <div class="jumbotron text-center p-4">
+        <h2>漫画Epub电子书打包</h2>
+        <h4>
+            Epub Packer For Manga
+            <!-- Button trigger modal -->
+            <label data-toggle="modal" data-target="#exampleModal" title="帮助信息">
+                <img src="/static/image/question-circle-fill.svg"/>
+            </label>
+        </h4>
+    </div>
+    <div class="container">
+        <div class="row mt-3">
+            <!-- Modal -->
+            <div class="modal fade" id="exampleModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title" id="exampleModalLabel">用户手册</h4>
+                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="p-3">
+                                <h5 class="text-center mb-3">写入覆盖模式</h5>
+                                    <p>启用时: 对于系统中已经存在的同名epub文件，程序会直接覆盖重写</p>
+                                    <p>非启用时: 程序选择跳过同名文件的生成，即非批量模式下直接失败</p>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="text-center mb-3">非批量模式</h5>
+                                    <p class="mb-2">
+                                        漫画的图片必须在同一个目录下，并且图片的名称是有序的，后面电子书的页面
+                                        顺序也是基于图片的名字排序得到的
+                                    </p>
+                                    <p class="mb-2">
+                                        由于浏览器的安全策略，无法通过浏览器端直接获取图片的真实路径，所以需要在
+                                        <strong>图片所在目录</strong>框内填写图片的所在目录的路径
+                                    </p>
+                                    <p class="mb-2">
+                                        填写好以下页面上的[必填]选项后，最后再点击<strong>生成Epub电子书</strong>按钮
+                                    </p>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="text-center mb-3">批量模式</h5>
+                                    <p class="mb-2">
+                                        批量模式的复选框必须勾选
+                                    </p>
+                                    <p class="mb-2">
+                                        多个文件夹在同一个目录下，这个目录也是<strong>图片所在目录</strong>框需要填写的内容，
+                                        即填写的是每个图片的祖目录
+                                    </p>
+                                    <p class="mb-2">
+                                        批量模式下无法自定义基本信息和目录信息，默认书名是文件夹的名字，目录信息为空，必填
+                                        项只有<strong>图片所在目录</strong>
+                                    </p>
+                            </div>
+                        </div>
+                        <div class="modal-footer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="w-100 alert alert-warning alert-dismissible fade show" role="alert" id="tip" style="display: none">
+                <div></div>
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        </div>
+        <form action="#" method="post" id="form">
+            <div class="row">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" name="path" placeholder="图片所在目录[必填]"/>
+                </div>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" name="targetPath" placeholder="epub文件生成目录(默认与图片所在目录一致)"/>
+                    <div class="input-group-prepend" style="position: relative">
+                        <div class="spinner-border text-primary" role="status" id="waiting">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-no-margin" id="pack">生成Epub电子书</button>
+                    </div>
+                </div>
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="bulkMode">
+                    <label class="custom-control-label" for="bulkMode">批量模式</label>
+                </div>
+                &emsp;
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="overwriteFile">
+                    <label class="custom-control-label" for="overwriteFile">写入覆盖模式</label>
+                </div>
+            </div>
+            <h3 class="text-center pb-3">基本信息</h3>
+            <div class="row" id="baseInfo">
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="filename" placeholder="Epub文件名">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="title" placeholder="书名[非批量模式必填]" title="title">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="creator" placeholder="著作者" title="creator">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="contributor" placeholder="贡献者" title="contributor">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="publisher" placeholder="出版社" title="publisher">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="date" placeholder="出版日期(格式:XXXX-XX-XX)" title="date">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="language" placeholder="语种" title="language">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="type" placeholder="类型" title="type">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="format" placeholder="格式" title="format">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="identifier" placeholder="标识符" title="identifier">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="source" placeholder="来源" title="source">
+                </div>
+                <div class="input-group col-md-4 mb-3">
+                    <input type="text" class="form-control" name="coverage" placeholder="覆盖范围" title="coverage">
+                </div>
+                <div class="input-group col-md-6 mb-3">
+                    <input type="text" class="form-control" name="relation" placeholder="相关信息" title="relation">
+                </div>
+                <div class="input-group col-md-6 mb-3">
+                    <input type="text" class="form-control" name="rights" placeholder="权限描述" title="rights">
+                </div>
+                <div class="input-group col-md-12 mb-3">
+                    <input type="text" class="form-control" name="subject" placeholder="主题词/关键词(多个使用;分隔)" title="subject">
+                </div>
+                <div class="input-group col-md-12">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text">内容描述</span>
+                    </div>
+                    <textarea class="form-control" name="description" title="description"></textarea>
+                </div>
+            </div>
+            <h3 class="text-center mt-5 pb-3">目录信息</h3>
+            <div class="row">
+                <div class="col-md-5">
+                    <div class="list-group" id="toc-items">
+                        <div class="list-group-item list-group-item-action" link="default">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h4 class="mb-1">封面</h4>
+                                <span class="badge">
+                                    <input type="file" accept=".png, .jpg, .jpeg" id="cover" onchange="uploadImage(this)"/>
+                                    <input type="text" name="cover" style="display: none"/>
+                                    <label class="btn btn-success btn-no-margin" for="cover">选择图片</label>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="list-group-item list-group-item-action" link="default">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h4 class="mb-1">目录</h4>
+                                <span class="badge">
+                                    <input type="file" accept=".png, .jpg, .jpeg" id="toc" onchange="uploadImage(this)"/>
+                                    <input type="text" name="toc" style="display: none"/>
+                                    <label class="btn btn-success btn-no-margin" for="toc">选择图片</label>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="list-group-item list-group-item-action" link="default">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h4 class="mb-1">正文起始页</h4>
+                                <span class="badge">
+                                    <input type="file" accept=".png, .jpg, .jpeg" id="bodymatter" onchange="uploadImage(this)"/>
+                                    <input type="text" name="bodymatter" style="display: none"/>
+                                    <label class="btn btn-success btn-no-margin" for="bodymatter">选择图片</label>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="list-group-item list-group-item-action" link="default">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h4 class="mb-1">版权页</h4>
+                                <span class="badge">
+                                    <input type="file" accept=".png, .jpg, .jpeg" id="colophon" onchange="uploadImage(this)"/>
+                                    <input type="text" name="colophon" style="display: none"/>
+                                    <label class="btn btn-success btn-no-margin" for="colophon">选择图片</label>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="list-group mt-3">
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <input type="text" class="form-control w-75" placeholder="添加自定义目录" id="new-toc-title">
+                                <span class="badge">
+                                    <label class="btn btn-success btn-no-margin" id="customize-toc" onclick="appendTocItem()">添加</label>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <div class="alert alert-primary text-center" role="alert">
+                        图片预览
+                    </div>
+                    <div id="frame" style="position: relative">
+                        <img id="display" src="/static/image/image-frame.svg" width="100%" style="position: absolute; top: 0; left: 0">
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
+<script src="/static/js/epub.js"></script>
