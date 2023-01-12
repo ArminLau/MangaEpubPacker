@@ -17,7 +17,7 @@ logging.basicConfig(filename="./logs/manga_epub_packer.log", format='%(asctime)s
                     level=logging.DEBUG)
 logger = logging.getLogger()
 console_handler = logging.StreamHandler() #日志同时输出到控制台
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 logger.addHandler(console_handler)
 
 def validate_value(value):
@@ -40,7 +40,7 @@ class Template:
                          f"Directory for epub templates does not exit, failed to init program\n")
             raise Exception(f"Directory for templates does not exist")
         self.file_list = os.listdir(self.target_dir)
-        require_templates = ['container.xml', 'content.opf', 'page.xhtml', 'mimetype', 'toc.ncx']
+        require_templates = ['container.xml', 'content.opf', 'page.xhtml', 'mimetype', 'toc.ncx', 'nav.xhtml', 'style.css'] #必要的模板文件
         for template in require_templates:
             if template not in self.file_list:
                 logging.error(f"缺失模板文件{template}, 程序初始化失败\n"
@@ -71,6 +71,9 @@ class Template:
 
     def get_toc_ncx_template(self):
         return self.read_template("toc.ncx")
+
+    def get_style_css_template(self):
+        return self.read_template("style.css")
 
 class ComicInfo:
     def __init__(self, data:dict):
@@ -239,7 +242,10 @@ class Packer:
             self.epubFile.writestr(f'OEBPS/Text/{image_prefix}.xhtml', template, compress_type=zipfile.ZIP_STORED)
         logging.debug(f"Sucessful to create image_page.xhtml")
 
-    #弃用的打包文件
+    def create_style_css(self):
+        self.epubFile.writestr('OEBPS/Styles/style.css', self.template.get_style_css_template(), compress_type=zipfile.ZIP_STORED)
+        logging.debug(f"Sucessful to create style.css")
+
     def create_nav_xhtml(self, title):
         template = str(self.template.get_nav_xhtml_template()).replace("${title}",title)
         catalog_items_template = "<li><a href=\"Text/${image_index}.xhtml\">${toc_title}</a></li>"
@@ -312,6 +318,7 @@ class Packer:
             self.cover_index = images_info[0][0] #批量模式下或者目录信息缺失的情况下，设定第一页为封面页
         self.create_mimetype()
         self.create_container_xml()
+        self.create_style_css()
         self.create_image_page_xhtml(images_info=images_info, title=title)
         self.create_content_opf(title=title, images_info=images_info, mange_identifier=mange_identifier)
         #self.create_toc_ncx(title=title, mange_identifier=mange_identifier)
@@ -387,16 +394,16 @@ class EpubHandler(SimpleHTTPRequestHandler):
             log_file = f"{os.getcwd() + os.sep}logs{os.sep}manga_epub_packer.log"
             #这里可以自定义消息的html风格，出错的信息标红显示
             msg = "<font color=\"red\">打包失败，请查看日志了解详情</font><br/>"
-            sucess_count = 0
+            success_count = 0
             if len(result) > 0:
                 msg = ""
                 for key,value in result.items():
                     if len(value) > 0:
                         msg = msg + f"成功打包漫画<strong>{key}</strong>, 存放路径:{value}<br/>"
-                        sucess_count = sucess_count+1
+                        success_count = success_count+1
                     else:
                         msg = msg +f"<font color=\"red\">打包漫画<strong>{key}</strong>时出现错误，请查看日志文件了解详情</font><br/>"
-                if len(result) == sucess_count:
+                if len(result) == success_count:
                     flag = 1
             if flag == 0:
                 msg = msg + f"<font color=\"red\">日志文件存放路径: {log_file}</font><br/>"

@@ -102,13 +102,24 @@ $("#pack").click(function () {
             var data = jQuery.parseJSON(result)
             showMsg(data.msg);
             if(data.status == 1){
-                $("input[name]").val("");
                 $("#toc-items").find(".list-group-item").attr("link", "default");
-                $("#display").prop("src","/static/image/image-frame.svg")
+                $("#display").prop("src","/static/image/image-frame.svg");
+                clearCustomToc(); //清除目录的自定义选项
+                if($("#autoClear").prop("checked")){
+                    $("input[name]").val(""); //成功生成epub文件后自动清空表单
+                }
             }
         }
     });
 });
+function clearCustomToc(){
+    var default_filter = "cover_toc_bodymatter_colophon";
+    $("#toc-items").find(".list-group-item").each(function (index, element) {
+        if(default_filter.indexOf($(element).find("input[name]").attr("name")) == -1){
+            $(element).remove();
+        }
+    });
+}
 function handleBulkPack(path, targetPath) {
     var postData = {};
     postData["bulk"] = true;

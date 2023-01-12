@@ -35,22 +35,30 @@
                         <div class="modal-body">
                             <div class="p-3">
                                 <h5 class="text-center mb-3">写入覆盖模式</h5>
-                                    <p>启用时: 对于系统中已经存在的同名epub文件，程序会直接覆盖重写</p>
-                                    <p>非启用时: 程序选择跳过同名文件的生成，即非批量模式下直接失败</p>
+                                <p>启用时: 对于系统中已经存在的同名epub文件，程序会直接覆盖重写</p>
+                                <p>非启用时: 程序选择跳过同名文件的生成，即非批量模式下直接失败</p>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="text-center mb-3">自动清空表单</h5>
+                                <p>勾选此选项后，如果成功生成了epub文件，则自动清空所有的表单项</p>
+                            </div>
+                            <div class="p-3">
+                                <h5 class="text-center mb-3">目录信息</h5>
+                                <p>编辑目录信息时，不必在意页面上各个选项的先后顺序，生成epub文件时目录信息是严格依照图片名称的先后顺序排列的</p>
                             </div>
                             <div class="p-3">
                                 <h5 class="text-center mb-3">非批量模式</h5>
-                                    <p class="mb-2">
-                                        漫画的图片必须在同一个目录下，并且图片的名称是有序的，后面电子书的页面
-                                        顺序也是基于图片的名字排序得到的
-                                    </p>
-                                    <p class="mb-2">
-                                        由于浏览器的安全策略，无法通过浏览器端直接获取图片的真实路径，所以需要在
-                                        <strong>图片所在目录</strong>框内填写图片的所在目录的路径
-                                    </p>
-                                    <p class="mb-2">
-                                        填写好以下页面上的[必填]选项后，最后再点击<strong>生成Epub电子书</strong>按钮
-                                    </p>
+                                <p class="mb-2">
+                                    漫画的图片必须在同一个目录下，并且图片的名称是有序的，后面电子书的页面
+                                    顺序也是基于图片的名字排序得到的
+                                </p>
+                                <p class="mb-2">
+                                    由于浏览器的安全策略，无法通过浏览器端直接获取图片的真实路径，所以需要在
+                                    <strong>图片所在目录</strong>框内填写图片的所在目录的路径
+                                </p>
+                                <p class="mb-2">
+                                    填写好以下页面上的[必填]选项后，最后再点击<strong>生成Epub电子书</strong>按钮
+                                </p>
                             </div>
                             <div class="p-3">
                                 <h5 class="text-center mb-3">批量模式</h5>
@@ -102,6 +110,11 @@
                 <div class="custom-control custom-switch">
                     <input type="checkbox" class="custom-control-input" id="overwriteFile">
                     <label class="custom-control-label" for="overwriteFile">写入覆盖模式</label>
+                </div>
+                &emsp;
+                <div class="custom-control custom-switch">
+                    <input type="checkbox" class="custom-control-input" id="autoClear">
+                    <label class="custom-control-label" for="autoClear" title="成功发送请求后自动清空表单">自动清空表单</label>
                 </div>
             </div>
             <h3 class="text-center pb-3">基本信息</h3>
