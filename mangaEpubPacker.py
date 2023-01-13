@@ -10,9 +10,10 @@ import socketserver
 import io,shutil
 import logging
 import json
+import traceback
 
 #配置日志
-logging.basicConfig(filename="./logs/manga_epub_packer.log", format='%(asctime)s - %(name)s - %(levelname)s -%(module)s:  %(message)s',
+logging.basicConfig(filename="./logs/manga_epub_packer.log", format='%(asctime)s - %(name)s - %(levelname)s -%(module)s –%(lineno)d:  %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S ',
                     level=logging.DEBUG)
 logger = logging.getLogger()
@@ -170,9 +171,11 @@ class Packer:
         self.epubFile.writestr('mimetype', self.template.get_mimetype_template(), compress_type=zipfile.ZIP_STORED)
         logging.debug(f"Sucessful to create mimetype")
 
-    def write_image(self, source_path, images):
-        for image in images:
-            self.epubFile.write(source_path+os.sep+image, "OEBPS/Images/"+image, compress_type=zipfile.ZIP_STORED)
+    def write_image(self, source_path, images_info):
+        for image_info in images_info:
+            image_name_prefix, image_name_postfix = image_info[0:2]
+            image = f"{image_name_prefix}.{image_name_postfix}"
+            self.epubFile.write(source_path+os.sep+image, "OEBPS/Images/"+f"{image_name_prefix}.{image_name_postfix.lower()}", compress_type=zipfile.ZIP_STORED)
         logging.debug(f"Sucessful to write images under source path{source_path}")
 
     def get_index_str(self, num:int):
@@ -219,6 +222,7 @@ class Packer:
         items3 = ""
         for item in images_info:
             image_prefix, image_postfix = item[0:2]
+            image_postfix = str(image_postfix).lower() #统一将文件后缀转为小写
             count = count + 1
             index = self.get_index_str(count)
             template1 = f"<item id=\"x_{index}\" href=\"Text/{image_prefix}.xhtml\" media-type=\"application/xhtml+xml\" properties=\"svg\"/>"
@@ -238,7 +242,7 @@ class Packer:
         for item in images_info:
             image_prefix, image_postfix, image_width, image_heigh = item
             template = self.template.get_page_xhtml_template()
-            template = str(template).replace("${title}", title).replace("${image_name_with_suffix}",str(image_prefix+"."+image_postfix)).replace("${imageWidth}",str(image_width)).replace("${imageHeight}",str(image_heigh))
+            template = str(template).replace("${title}", title).replace("${image_name_with_suffix}",str(image_prefix+"."+image_postfix.lower())).replace("${imageWidth}",str(image_width)).replace("${imageHeight}",str(image_heigh))
             self.epubFile.writestr(f'OEBPS/Text/{image_prefix}.xhtml', template, compress_type=zipfile.ZIP_STORED)
         logging.debug(f"Sucessful to create image_page.xhtml")
 
@@ -255,7 +259,8 @@ class Packer:
             toc_list = list(toc_info.keys())
             toc_list.sort()
             for toc in toc_list:
-                catalog_items = catalog_items + (catalog_items_template.replace("${image_index}", toc).replace("${toc_title}", toc_info.get(toc).get("title")) + "\n")
+                if len(toc) > 0:
+                    catalog_items = catalog_items + (catalog_items_template.replace("${image_index}", toc).replace("${toc_title}", toc_info.get(toc).get("title")) + "\n")
         if len(catalog_items) == 0:
             catalog_items = catalog_items_template.replace("${image_index}", self.cover_index).replace("${toc_title}", "封面") + "\n"
         template = template.replace("${catalog_items}", catalog_items)
@@ -309,7 +314,7 @@ class Packer:
         if os.path.exists(filename) and self.is_overwrite is False:
             raise RuntimeError(f"{filename} has been existed under path:{target_path}, stop packing")
         self.epubFile = zipfile.ZipFile(filename, 'w')
-        images = get_files_under_path(path=source_path, postfix_filter=["jpg", "png", "jpeg"], sort_by_name=True)
+        images = get_files_under_path(path=source_path, postfix_filter=["jpg", "png", "jpeg"], sort_by_name=True, ignore_case=True)
         logging.debug(f"Successful to get images {images} from path: {source_path}")
         if not validate_value(images):
             raise RuntimeError(f"there is no image under path: {source_path}, failed to pack")
@@ -323,7 +328,7 @@ class Packer:
         self.create_content_opf(title=title, images_info=images_info, mange_identifier=mange_identifier)
         #self.create_toc_ncx(title=title, mange_identifier=mange_identifier)
         self.create_nav_xhtml(title=title)
-        self.write_image(source_path=source_path, images=images)
+        self.write_image(source_path=source_path, images_info=images_info)
         self.close()
 
 def get_file_postfix(filename:str):
@@ -334,12 +339,15 @@ def get_file_postfix(filename:str):
             postfix = filename_array[len(filename_array) - 1]
     return postfix
 
-def get_files_under_path(path, postfix_filter:list, sort_by_name=False):
+def get_files_under_path(path, postfix_filter:list, sort_by_name=False, ignore_case=True):
     if not os.path.exists(path):
         return None
     files = list()
     for item in os.listdir(path):
-        if os.path.isfile(path + os.sep + item) and (get_file_postfix(item) in postfix_filter):
+        postfix = get_file_postfix(item)
+        if ignore_case:
+            postfix = postfix.lower()
+        if os.path.isfile(path + os.sep + item) and (postfix in postfix_filter):
             files.append(item)
     if sort_by_name:
         files.sort()
@@ -393,7 +401,7 @@ class EpubHandler(SimpleHTTPRequestHandler):
             flag = 0
             log_file = f"{os.getcwd() + os.sep}logs{os.sep}manga_epub_packer.log"
             #这里可以自定义消息的html风格，出错的信息标红显示
-            msg = "<font color=\"red\">打包失败，请查看日志了解详情</font><br/>"
+            msg = "<font color=\"red\">打包失败，请查看日志和程序控制台了解详情</font><br/>"
             success_count = 0
             if len(result) > 0:
                 msg = ""
@@ -402,7 +410,7 @@ class EpubHandler(SimpleHTTPRequestHandler):
                         msg = msg + f"成功打包漫画<strong>{key}</strong>, 存放路径:{value}<br/>"
                         success_count = success_count+1
                     else:
-                        msg = msg +f"<font color=\"red\">打包漫画<strong>{key}</strong>时出现错误，请查看日志文件了解详情</font><br/>"
+                        msg = msg +f"<font color=\"red\">打包漫画<strong>{key}</strong>时出现错误，请查看日志文件和程序控制台了解详情</font><br/>"
                 if len(result) == success_count:
                     flag = 1
             if flag == 0:
@@ -430,6 +438,7 @@ def handle_ebup_request(datasets):
     except Exception as e:
         logging.error(f"打包出错，相关的错误信息\n"
                       f"Failed to pack, error message that matter: {e}")
+        traceback.print_exc()
     finally:
         os.chdir(cwd_path)
         return pack_result
