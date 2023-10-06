@@ -352,10 +352,47 @@ def get_files_under_path(path, postfix_filter:list, sort_by_name=False, ignore_c
         if os.path.isfile(path + os.sep + item) and (postfix in postfix_filter):
             files.append(item)
     if sort_by_name:
-        files.sort()
+        # 使用自定义的排序方法
+        files = sort_files(files)
     if reverse_sort:
         files.reverse()
     return files
+
+def get_file_sort_info(file:str):
+    original = file
+    before = ""
+    after = ""
+    num = ""
+    postfix = get_file_postfix(file)
+    file = file[:(len(file)-len(postfix)-1)]
+    length = len(file)
+    for i in range(length):
+        after_change = False
+        num_change = False
+        char = file[length-i-1]
+        if (not char.isdigit()) and len(num) == 0:
+            after_change = True
+            after = after+char
+        if char.isdigit() and len(before) == 0:
+            num_change = True
+            num = num+char
+        if not (after_change or num_change):
+            before = before+char
+    before, num, after = before[::-1], num[::-1], after[::-1]
+    num = int(num) if len(num) != 0 else 0
+    return (before, num, after, original)
+
+# 自定义的排序规则，具体排序策略: 根据单张图片的文件名将文件拆分为以下三部分
+#     1.前缀: 文件名去除拓展名，序号和后缀后的剩余字符部分
+#     2.序号: 文件名去除拓展名和后缀后截取的连续数字部分
+#     3.后缀: 文件名去除拓展名后逆序截取的非数字的字符部分
+# 多个文件名排序时依次按照前缀(python默认的字符串排序策略)，序号(序号转为正整数后升序排序), 后缀(python默认的字符串排序策略)的优先级进行排序
+def sort_files(files:list):
+    subdivision = list()
+    for file in files:
+        subdivision.append(get_file_sort_info(file))
+    subdivision.sort(key=lambda x: (x[0], x[1], x[2]))
+    return [x[3] for x in subdivision]
 
 def get_dirs_under_path(path):
     if not os.path.exists(path):
