@@ -82,6 +82,7 @@ class ComicInfo:
         self.path = data.get("path")
         self.bulk = data.get("bulk")
         self.overwrite = data.get("overwrite")
+        self.reverseSort = data.get("reverseSort")
         if not validate_value(self.path):
             logging.error("没有指定图片的源目录，打包终止\n"
                   "Source path of manga images is not set, stop packing\n")
@@ -132,6 +133,7 @@ class Packer:
         self.target_path = ComicInfo.target_path
         self.is_bulk = ComicInfo.bulk
         self.is_overwrite = ComicInfo.overwrite
+        self.reverse_sort = ComicInfo.reverseSort
         for path in [self.path, self.target_path]:
             if not os.path.exists(path):
                 logging.error(f"指定的目录{path}不存在，打包失败，请重试\n"
@@ -314,7 +316,7 @@ class Packer:
         if os.path.exists(filename) and self.is_overwrite is False:
             raise RuntimeError(f"{filename} has been existed under path:{target_path}, stop packing")
         self.epubFile = zipfile.ZipFile(filename, 'w')
-        images = get_files_under_path(path=source_path, postfix_filter=["jpg", "png", "jpeg"], sort_by_name=True, ignore_case=True)
+        images = get_files_under_path(path=source_path, postfix_filter=["jpg", "png", "jpeg"], sort_by_name=True, ignore_case=True, reverse_sort=self.reverse_sort)
         logging.debug(f"Successful to get images {images} from path: {source_path}")
         if not validate_value(images):
             raise RuntimeError(f"there is no image under path: {source_path}, failed to pack")
@@ -339,7 +341,7 @@ def get_file_postfix(filename:str):
             postfix = filename_array[len(filename_array) - 1]
     return postfix
 
-def get_files_under_path(path, postfix_filter:list, sort_by_name=False, ignore_case=True):
+def get_files_under_path(path, postfix_filter:list, sort_by_name=False, ignore_case=True, reverse_sort=False):
     if not os.path.exists(path):
         return None
     files = list()
@@ -351,6 +353,8 @@ def get_files_under_path(path, postfix_filter:list, sort_by_name=False, ignore_c
             files.append(item)
     if sort_by_name:
         files.sort()
+    if reverse_sort:
+        files.reverse()
     return files
 
 def get_dirs_under_path(path):

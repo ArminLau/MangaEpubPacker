@@ -79,6 +79,7 @@ $("#pack").click(function () {
     var title = $("input[name='title']").val();
     var bulkMode = $("#bulkMode").prop("checked");
     var overwrite = $("#overwriteFile").prop("checked");
+    var reverseSort = $("#reverseSort").prop("checked");
     if(path.length < 1 || (title.length < 1 & bulkMode == false)){
         showMsg("表单必填项没有填写，请补充好后再重试!", 3000);
         return;
@@ -90,6 +91,7 @@ $("#pack").click(function () {
         postData = handleSinglePack(path, targetPath);
     }
     postData["overwrite"] = overwrite;
+    postData["reverseSort"] = reverseSort;
     //alert(JSON.stringify(postData));
     $("#waiting").css("visibility","visible");
     $.ajax({
